@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Security Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    function isCreatingForSelf() {
+      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    function isUpdatingForSelf() {
+      return isDocOwner() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // User account & profile metadata: Only the authenticated owner can read or write
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // User health profiles: Only the authenticated owner can read or write
+    match /healthProfiles/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Daily wellness assessments: Isolated per user ID
+    match /dailyAssessments/{assessmentId} {
+      allow read: if isDocOwner();
+      allow create: if isCreatingForSelf();
+      allow update: if isUpdatingForSelf();
+      allow delete: if isDocOwner();
+    }
+
+    // Recommendation feedback: Isolated per user ID
+    match /recommendationFeedback/{feedbackId} {
+      allow read: if isDocOwner();
+      allow create: if isCreatingForSelf();
+      allow update: if isUpdatingForSelf();
+      allow delete: if isDocOwner();
+    }
+
+    // Saved meals & plans: Isolated per user ID
+    match /savedMeals/{mealId} {
+      allow read: if isDocOwner();
+      allow create: if isCreatingForSelf();
+      allow update: if isUpdatingForSelf();
+      allow delete: if isDocOwner();
+    }
+
+    // Smart grocery lists: Isolated per user ID
+    match /groceryLists/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Trusted contacts: Isolated per user ID
+    match /trustedContacts/{contactId} {
+      allow read: if isDocOwner();
+      allow create: if isCreatingForSelf();
+      allow update: if isUpdatingForSelf();
+      allow delete: if isDocOwner();
+    }
+
+    // In-app notifications: Isolated per user ID
+    match /notifications/{notifId} {
+      allow read: if isDocOwner();
+      allow create: if isCreatingForSelf();
+      allow update: if isUpdatingForSelf();
+      allow delete: if isDocOwner();
+    }
+
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
